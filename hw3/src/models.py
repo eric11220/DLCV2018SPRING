@@ -1,19 +1,15 @@
 import os
-from keras.models import Model
-from keras.regularizers import l2
 from keras.layers import *
+from keras.models import Model
 from keras.models import *
+from keras.optimizers import Adam
+from keras.regularizers import l2
 
 from utils.BilinearUpSampling import *
 
 
-def FCN_Vgg16_32s(input_shape=None, weight_decay=0., batch_shape=None, classes=21):
-    if batch_shape:
-        img_input = Input(batch_shape=batch_shape)
-        image_size = batch_shape[1:3]
-    else:
-        img_input = Input(shape=input_shape)
-        image_size = input_shape[0:2]
+def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=21, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5"):
+    img_input = Input(shape=input_shape)
 
     # Block 1
     x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1', kernel_regularizer=l2(weight_decay))(img_input)
@@ -43,16 +39,21 @@ def FCN_Vgg16_32s(input_shape=None, weight_decay=0., batch_shape=None, classes=2
     x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv3', kernel_regularizer=l2(weight_decay))(x)
     x = MaxPooling2D((2, 2), strides=(2, 2), name='block5_pool')(x)
 
+    model_only_convs = Model(img_input, x)
+    model_only_convs.load_weights(weights_path, by_name=True)
+    last_conv = model_only_convs.output
+
     # Convolutional layers transfered from fully-connected layers
-    x = Conv2D(4096, (7, 7), activation='relu', padding='same', name='fc1', kernel_regularizer=l2(weight_decay))(x)
+    x = Conv2D(4096, (7, 7), activation='relu', padding='same', name='fc1', kernel_regularizer=l2(weight_decay))(last_conv)
     x = Dropout(0.5)(x)
     x = Conv2D(4096, (1, 1), activation='relu', padding='same', name='fc2', kernel_regularizer=l2(weight_decay))(x)
     x = Dropout(0.5)(x)
+
     #classifying layer
     x = Conv2D(classes, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid', strides=(1, 1), kernel_regularizer=l2(weight_decay))(x)
 
     x = BilinearUpSampling2D(size=(32, 32))(x)
-
-    model = Model(img_input, x)
-    model.load_weights(weights_path, by_name=True)
+    model = Model(model_only_convs.inputs, x)
+    model.compile(Adam(), 'categorical_crossentropy')
+    model.summary()
     return model
