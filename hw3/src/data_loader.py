@@ -8,6 +8,10 @@ class DataLoader():
         self._X, self._y, self._names = self._load_data(data_dir, npz_path)
 
         self._normalize = normalize
+        if normalize is True:
+            self._deduct = np.asarray([0.485, 0.456, 0.406])
+            self._dividend = np.asarray([0.229, 0.224, 0.225])
+
         self._start = 0
         self._num_data = self._X.shape[0]
 
@@ -107,4 +111,17 @@ class DataLoader():
 
             if self._normalize is True:
                 X = X.astype(np.float32) / 255.
+                X = (X - self._deduct) / self._dividend
             return False, X, y, names
+
+
+    def get_data(self, n_data=100):
+        X = self._X[:n_data]
+        y = self._y[:n_data]
+        names = self._names[:n_data]
+
+        if self._normalize is True:
+            X = X.astype(np.float32) / 255.
+            X = (X - self._deduct) / self._dividend
+
+        return X, y, names
