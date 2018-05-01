@@ -8,7 +8,7 @@ from keras.regularizers import l2
 from utils.BilinearUpSampling import *
 
 
-def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5"):
+def vgg16(input_shape, weight_decay, weights_path):
     img_input = Input(shape=input_shape)
 
     # Block 1
@@ -44,16 +44,22 @@ def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg1
     for layer in model_only_convs.layers:
         layer.trainable = False
 
-    # Convolutional layers transfered from fully-connected layers
-    x = Conv2D(4096, (7, 7), activation='relu', padding='same', name='fc1')(x)
-    x = Dropout(0)(x)
-    x = Conv2D(4096, (1, 1), activation='relu', padding='same', name='fc2')(x)
-    x = Dropout(0)(x)
+    return img_input, x, model_only_convs
 
-    #classifying layer
+
+def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.2):
+    img_input, vgg_out, _ = vgg16(input_shape, weight_decay, weights_path)
+
+    # Convolutional layers transfered from fully-connected layers
+    x = Conv2D(4096, (7, 7), activation='relu', padding='same', name='fc1')(vgg_out)
+    x = Dropout(droprate)(x)
+    x = Conv2D(4096, (1, 1), activation='relu', padding='same', name='fc2')(x)
+    x = Dropout(droprate)(x)
+
+    # Classifying layer
     x = Conv2D(classes, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid', strides=(1, 1))(x)
 
-    #x = BilinearUpSampling2D(size=(32, 32))(x)
+    # Upsampling to 512 * 512
     x = Conv2DTranspose(classes, (64, 64), strides=(32, 32), padding='same')(x)
     x = Activation('softmax')(x)
 
@@ -61,3 +67,26 @@ def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg1
     model.compile(Adam(), 'categorical_crossentropy')
     model.summary()
     return model
+
+
+def FCN_Vgg16_16s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.2):
+    img_input, vgg_out, vgg = vgg16(input_shape, weight_decay, weights_path)
+
+    skip_con = Convolution2D(classes, kernel_size=(1,1), padding="same", name="score_pool4")
+
+    # Convolutional layers transfered from fully-connected layers
+    x = Conv2D(4096, (7, 7), activation='relu', padding='same', name='fc1')(vgg_out)
+    x = Dropout(droprate)(x)
+    x = Conv2D(4096, (1, 1), activation='relu', padding='same', name='fc2')(x)
+    x = Dropout(droprate)(x)
+
+    # Classifying layer
+    x = Conv2D(classes, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid', strides=(1, 1))(x)
+
+    # Upsample last output to 32 * 32 and add skip-con from second last pooling
+    x = Conv2DTranspose(classes ,kernel_size=(4,4), strides = (2,2), padding = "same", name = "score2")
+    x = add(inputs = [skip_con(vgg.layers[14].output), x])
+
+    # Upsample sum back to 512 * 512
+    x = Conv2DTranspose(classes, (32, 32), strides=(16, 16), padding='same')(x)
+    x = Activation('softmax')(x)
