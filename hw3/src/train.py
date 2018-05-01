@@ -13,9 +13,9 @@ SEG_TRAIN_MASK_DIR = "../results/train"
 SEG_TEST_MASK_DIR = "../results/test"
 
 
-def debug_load_data():
-    train_dl = DataLoader(os.path.join(DATA_DIR, "train"))
-    val_dl = DataLoader(os.path.join(DATA_DIR, "validation"))
+def debug_load_data(normalize=False):
+    train_dl = DataLoader(os.path.join(DATA_DIR, "train"), normalize=normalize)
+    val_dl = DataLoader(os.path.join(DATA_DIR, "validation"), normalize=normalize)
     return train_dl, val_dl
 
 
@@ -52,13 +52,10 @@ def run_testing(model, val_dl, seg_img_dir, batch_size=3, truth_dir="../data/val
     return mean_iou_score(pred, labels)
 
 
-def get_train_iou(model, train_dl, seg_img_dir, batch_size=3, num_plt=100, truth_dir="../data/train", normalize=False):
+def get_train_iou(model, train_dl, seg_img_dir, batch_size=3, num_plt=100, truth_dir="../data/train"):
     if os.path.isdir(seg_img_dir):
         shutil.rmtree(seg_img_dir)
-    X, names = np.array(train_dl._X[:num_plt]), train_dl._names[:num_plt]
-
-    if normalize is True:
-        X = X.astype(np.float32) / 255.
+    X, _, names = train_dl.get_data(num_plt)
 
     start = 0
     while start <= num_plt:
@@ -91,15 +88,17 @@ def seg_imgs_into_dir(model, X, names, seg_img_dir):
         misc.imsave(path, mask)
 
 
-#def main(train_dl, val_dl):
-def main():
-    normalize = False
+def main(train_dl, val_dl):
+#def main():
     n_epoch, batch_size, max_val_iou = 10, 3, 0.
+    normalize = True
     saved_model_dir = "../models"
     os.makedirs(saved_model_dir, exist_ok=True)
 
+    '''
     train_dl = DataLoader(os.path.join(DATA_DIR, "train"), normalize=normalize)
     val_dl = DataLoader(os.path.join(DATA_DIR, "validation"), normalize=normalize)
+    '''
 
     fcn = FCN_Vgg16_32s(input_shape=(512, 512, 3))
     for epoch_idx in range(n_epoch):
@@ -114,7 +113,7 @@ def main():
             epoch_finish, batch_X, batch_y, _ = train_dl.next_batch(batch_size=batch_size)
             batch_cnt += 1
 
-        get_train_iou(fcn, train_dl, SEG_TRAIN_MASK_DIR, normalize=normalize)
+        get_train_iou(fcn, train_dl, SEG_TRAIN_MASK_DIR)
         val_mean_iou = run_testing(fcn, val_dl, SEG_TEST_MASK_DIR, batch_size=batch_size)
         if val_mean_iou > max_val_iou:
             model_path = os.path.join(saved_model_dir, "%.4f.h5" % val_mean_iou)
