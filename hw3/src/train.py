@@ -55,7 +55,7 @@ def run_testing(model, val_dl, seg_img_dir, batch_size=3, truth_dir="../data/val
 def get_train_iou(model, train_dl, seg_img_dir, batch_size=3, num_plt=100, truth_dir="../data/train"):
     if os.path.isdir(seg_img_dir):
         shutil.rmtree(seg_img_dir)
-    X, names = train_dl._X[:num_plt], train_dl._names[:num_plt]
+    X, names = np.array(train_dl._X[:num_plt], dtype=np.float32) / 255., train_dl._names[:num_plt]
 
     start = 0
     while start <= num_plt:
@@ -88,22 +88,19 @@ def seg_imgs_into_dir(model, X, names, seg_img_dir):
         misc.imsave(path, mask)
 
 
-def main(train_dl, val_dl):
-    '''
+#def main(train_dl, val_dl):
+def main():
     train_dl = DataLoader(os.path.join(DATA_DIR, "train"))
     val_dl = DataLoader(os.path.join(DATA_DIR, "validation"))
-    '''
 
-    n_epoch, batch_size = 10, 3
+    n_epoch, batch_size, maxx_val_iou = 10, 3, 0.
+    saved_model_dir = "../models"
+    os.makedirs(saved_model_dir, exist_ok=True)
 
     fcn = FCN_Vgg16_32s(input_shape=(512, 512, 3))
     for epoch_idx in range(n_epoch):
         batch_cnt = 0
         epoch_finish, batch_X, batch_y, names = train_dl.next_batch(batch_size=batch_size)
-
-        mask = np.argmax(batch_y[0], axis=-1)
-        mask = cate_to_colors(mask[np.newaxis, :, :])
-        misc.imsave("%s_mask.png" % names[0], mask[0])
 
         while epoch_finish is False:
             if batch_cnt % 100 == 0:
@@ -115,7 +112,12 @@ def main(train_dl, val_dl):
             batch_cnt += 1
 
         val_mean_iou = run_testing(fcn, val_dl, SEG_TEST_MASK_DIR, batch_size=batch_size)
-        #print("Epoch %d -- validation IOU: %.4f" % (epoch_idx, val_mean_iou))
+        if val_mean_iou > max_val_iou:
+            model_path = os.path.join(saved_model_dir, "%.4f.h5" % val_mean_iou)
+            fcn.save(model_path)
+            print("IOU %.4f better than maxx IOU: %.4f, saving model to %s..." % (mean_val_iou, max_val_iou, model_path))
+
+            max_val_iou = val_mean_iou
 
 
 if __name__ == '__main__':
