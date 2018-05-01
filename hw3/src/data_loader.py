@@ -4,9 +4,10 @@ from scipy import misc
 
 
 class DataLoader():
-    def __init__(self, data_dir, npz_path=None):
+    def __init__(self, data_dir, npz_path=None, normalize=False):
         self._X, self._y, self._names = self._load_data(data_dir, npz_path)
 
+        self._normalize = normalize
         self._start = 0
         self._num_data = self._X.shape[0]
 
@@ -100,7 +101,10 @@ class DataLoader():
         else:
             start, end = self._start, self._start + batch_size
             self._start += batch_size
-            X = self._X[start:end]
+            X = np.array(self._X[start:end])
             y = self._cate_mask_to_one_hot(self._y[start:end])
             names = self._names[start:end]
-            return False, np.array(X, dtype=np.float32) / 255., y, names
+
+            if self._normalize is True:
+                X = X.astype(np.float32) / 255.
+            return False, X, y, names
