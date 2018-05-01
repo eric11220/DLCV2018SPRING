@@ -15,6 +15,13 @@ class DataLoader():
     def _raw_masks_to_cate(self, masks, n_classes=7):
         masks = (masks >= 128).astype(int)
         masks = 4 * masks[:, :, :, 0] + 2 * masks[:, :, :, 1] + masks[:, :, :, 2]
+        masks[i, mask == 3] = 0  # (Cyan: 011) Urban land
+        masks[i, mask == 6] = 1  # (Yellow: 110) Agriculture land
+        masks[i, mask == 5] = 2  # (Purple: 101) Rangeland
+        masks[i, mask == 2] = 3  # (Green: 010) Forest land
+        masks[i, mask == 1] = 4  # (Blue: 001) Water
+        masks[i, mask == 7] = 5  # (White: 111) Barren land
+        masks[i, mask == 0] = 6  # (Black: 000) Unknown
         return masks
     
     def _load_data(self, data_dir, npz_path=None):
@@ -68,7 +75,7 @@ class DataLoader():
         n, h, w = masks.shape
         one_hots = []
         for mask in masks:
-            one_hot = (np.arange(n_classes) == mask[...,None]-1).astype(int)
+            one_hot = (np.arange(n_classes) == mask[...,None]).astype(int)
             one_hots.append(one_hot)
         one_hots = np.asarray(one_hots)
         return one_hots
@@ -78,9 +85,10 @@ class DataLoader():
         self._X = self._X[ind]
         self._y = self._y[ind]
         self._names = self._names[ind]
+        self._start = 0
 
     def next_batch(self, batch_size=32):
-        if self._start > self._num_data:
+        if self._start >= self._num_data:
             self._shuffle()
             return True, None, None, None
         else:
