@@ -12,17 +12,23 @@ class DataLoader():
 
         self._shuffle()
 
-    def _raw_masks_to_cate(self, masks, n_classes=7):
+    def _raw_masks_to_cate(self, masks):
+
+        n, h, w, _ = masks.shape
+        new_masks = np.zeros((n, h, w), dtype=np.uint8)
+
         masks = (masks >= 128).astype(int)
-        masks = 4 * masks[:, :, :, 0] + 2 * masks[:, :, :, 1] + masks[:, :, :, 2]
-        masks[masks == 3] = 0  # (Cyan: 011) Urban land
-        masks[masks == 6] = 1  # (Yellow: 110) Agriculture land
-        masks[masks == 5] = 2  # (Purple: 101) Rangeland
-        masks[masks == 2] = 3  # (Green: 010) Forest land
-        masks[masks == 1] = 4  # (Blue: 001) Water
-        masks[masks == 7] = 5  # (White: 111) Barren land
-        masks[masks == 0] = 6  # (Black: 000) Unknown
-        return masks
+        masks = np.dot(masks, np.asarray([4, 2, 1]))
+
+        new_masks[masks == 3] = 0  # (Cyan: 011) Urban land
+        new_masks[masks == 6] = 1  # (Yellow: 110) Agriculture land
+        new_masks[masks == 5] = 2  # (Purple: 101) Rangeland
+        new_masks[masks == 2] = 3  # (Green: 010) Forest land
+        new_masks[masks == 1] = 4  # (Blue: 001) Water
+        new_masks[masks == 7] = 5  # (White: 111) Barren land
+        new_masks[masks == 0] = 6  # (Black: 000) Unknown
+
+        return new_masks
     
     def _load_data(self, data_dir, npz_path=None):
         # Remove trailing slash
@@ -97,4 +103,4 @@ class DataLoader():
             X = self._X[start:end]
             y = self._cate_mask_to_one_hot(self._y[start:end])
             names = self._names[start:end]
-            return False, X, y, names
+            return False, np.array(X, dtype=np.float32) / 255., y, names
