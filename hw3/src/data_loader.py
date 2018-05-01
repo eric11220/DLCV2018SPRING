@@ -15,13 +15,13 @@ class DataLoader():
     def _raw_masks_to_cate(self, masks, n_classes=7):
         masks = (masks >= 128).astype(int)
         masks = 4 * masks[:, :, :, 0] + 2 * masks[:, :, :, 1] + masks[:, :, :, 2]
-        masks[i, mask == 3] = 0  # (Cyan: 011) Urban land
-        masks[i, mask == 6] = 1  # (Yellow: 110) Agriculture land
-        masks[i, mask == 5] = 2  # (Purple: 101) Rangeland
-        masks[i, mask == 2] = 3  # (Green: 010) Forest land
-        masks[i, mask == 1] = 4  # (Blue: 001) Water
-        masks[i, mask == 7] = 5  # (White: 111) Barren land
-        masks[i, mask == 0] = 6  # (Black: 000) Unknown
+        masks[masks == 3] = 0  # (Cyan: 011) Urban land
+        masks[masks == 6] = 1  # (Yellow: 110) Agriculture land
+        masks[masks == 5] = 2  # (Purple: 101) Rangeland
+        masks[masks == 2] = 3  # (Green: 010) Forest land
+        masks[masks == 1] = 4  # (Blue: 001) Water
+        masks[masks == 7] = 5  # (White: 111) Barren land
+        masks[masks == 0] = 6  # (Black: 000) Unknown
         return masks
     
     def _load_data(self, data_dir, npz_path=None):
