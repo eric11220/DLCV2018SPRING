@@ -119,7 +119,7 @@ def main():
         if val_mean_iou > max_val_iou:
             model_path = os.path.join(saved_model_dir, "%.4f.h5" % val_mean_iou)
             fcn.save(model_path)
-            print("IOU %.4f better than maxx IOU: %.4f, saving model to %s..." % (mean_val_iou, max_val_iou, model_path))
+            print("IOU %.4f better than maxx IOU: %.4f, saving model to %s..." % (val_mean_iou, max_val_iou, model_path))
 
             max_val_iou = val_mean_iou
 
