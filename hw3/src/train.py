@@ -110,7 +110,7 @@ def main():
     train_dl = DataLoader(os.path.join(DATA_DIR, "train"), normalize=args.normalize)
     val_dl = DataLoader(os.path.join(DATA_DIR, "validation"), normalize=args.normalize)
 
-    fcn = FCN_Vgg16_32s(input_shape=(512, 512, 3), droprate=args.droprate)
+    fcn = FCN_Vgg16_16s(input_shape=(512, 512, 3), droprate=args.droprate)
     for epoch_idx in range(args.n_epoch):
         batch_cnt = 0
         epoch_finish, batch_X, batch_y, names = train_dl.next_batch(batch_size=args.batch_size)
@@ -123,14 +123,14 @@ def main():
             epoch_finish, batch_X, batch_y, _ = train_dl.next_batch(batch_size=args.batch_size)
             batch_cnt += 1
 
-        get_train_iou(fcn, train_dl, SEG_TRAIN_MASK_DIR)
+        #get_train_iou(fcn, train_dl, SEG_TRAIN_MASK_DIR)
 
-        model_dir = os.path.join(args.saved_model_dir, "epoch%d_%.4f" % val_mean_iou)
+        model_dir = os.path.join(args.saved_model_dir, "epoch%d" % epoch_idx)
         os.makedirs(model_dir, exist_ok=True)
         val_mean_iou = run_testing(fcn, val_dl, model_dir, batch_size=args.batch_size)
         if val_mean_iou > max_val_iou:
 
-            model_path = os.path.join(model_dir, "model.h5")
+            model_path = os.path.join(model_dir, "%.4f.h5" % val_mean_iou)
             fcn.save(model_path)
 
             print("IOU %.4f better than maxx IOU: %.4f, saving model to %s..." % (val_mean_iou, max_val_iou, model_path))
