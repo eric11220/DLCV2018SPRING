@@ -47,7 +47,7 @@ def vgg16(input_shape, weight_decay, weights_path):
     return img_input, x, model_only_convs
 
 
-def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.2):
+def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.5):
     img_input, vgg_out, _ = vgg16(input_shape, weight_decay, weights_path)
 
     # Convolutional layers transfered from fully-connected layers
@@ -64,12 +64,12 @@ def FCN_Vgg16_32s(input_shape, weight_decay=0., classes=7, weights_path="../vgg1
     x = Activation('softmax')(x)
 
     model = Model(img_input, x)
-    model.compile(Adam(), 'categorical_crossentropy')
+    model.compile(Adam(1e-4), 'categorical_crossentropy')
     model.summary()
     return model
 
 
-def FCN_Vgg16_16s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.2):
+def FCN_Vgg16_16s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.5):
     img_input, vgg_out, vgg = vgg16(input_shape, weight_decay, weights_path)
 
     skip_con = Convolution2D(classes, kernel_size=(1,1), padding="same", name="score_pool4")
@@ -86,6 +86,29 @@ def FCN_Vgg16_16s(input_shape, weight_decay=0., classes=7, weights_path="../vgg1
     # Upsample last output to 32 * 32 and add skip-con from second last pooling
     x = Conv2DTranspose(classes ,kernel_size=(4,4), strides = (2,2), padding = "same", name = "score2")
     x = add(inputs = [skip_con(vgg.layers[14].output), x])
+
+    # Upsample sum back to 512 * 512
+    x = Conv2DTranspose(classes, (32, 32), strides=(16, 16), padding='same')(x)
+    x = Activation('softmax')(x)
+
+
+def FCN_Vgg16_8s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.5):
+    img_input, vgg_out, vgg = vgg16(input_shape, weight_decay, weights_path)
+
+    skip_con = Convolution2D(classes, kernel_size=(1,1), padding="same", name="score_pool4")
+
+    # Convolutional layers transfered from fully-connected layers
+    x = Conv2D(4096, (7, 7), activation='relu', padding='same', name='fc1')(vgg_out)
+    x = Dropout(droprate)(x)
+    x = Conv2D(4096, (1, 1), activation='relu', padding='same', name='fc2')(x)
+    x = Dropout(droprate)(x)
+
+    # Classifying layer
+    x = Conv2D(classes, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid', strides=(1, 1))(x)
+
+    # Upsample last output to 32 * 32 and add skip-con from second last pooling
+    x = Conv2DTranspose(classes ,kernel_size=(8, 8), strides = (4, 4), padding = "same", name = "score2")(x)
+    x = add(inputs = [skip_con(vgg.layers[10].output), x, skip_con(skip_con(vgg.layers[14].output))])
 
     # Upsample sum back to 512 * 512
     x = Conv2DTranspose(classes, (32, 32), strides=(16, 16), padding='same')(x)
