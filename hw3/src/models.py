@@ -84,12 +84,17 @@ def FCN_Vgg16_16s(input_shape, weight_decay=0., classes=7, weights_path="../vgg1
     x = Conv2D(classes, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid', strides=(1, 1))(x)
 
     # Upsample last output to 32 * 32 and add skip-con from second last pooling
-    x = Conv2DTranspose(classes ,kernel_size=(4,4), strides = (2,2), padding = "same", name = "score2")
+    x = Conv2DTranspose(classes ,kernel_size=(4, 4), strides = (2, 2), padding = "same", name = "score2")(x)
     x = add(inputs = [skip_con(vgg.layers[14].output), x])
 
     # Upsample sum back to 512 * 512
     x = Conv2DTranspose(classes, (32, 32), strides=(16, 16), padding='same')(x)
     x = Activation('softmax')(x)
+
+    model = Model(img_input, x)
+    model.compile(Adam(1e-4), 'categorical_crossentropy')
+    model.summary()
+    return model
 
 
 def FCN_Vgg16_8s(input_shape, weight_decay=0., classes=7, weights_path="../vgg16_weights_tf_dim_ordering_tf_kernels.h5", droprate=0.5):
