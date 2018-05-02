@@ -111,17 +111,15 @@ class DataLoader():
 
             if self._normalize is True:
                 X = X.astype(np.float32) / 255.
-                X = (X - self._deduct) / self._dividend
             return False, X, y, names
 
 
     def get_data(self, n_data=100):
-        X = self._X[:n_data]
+        X = np.array(self._X[:n_data])
         y = self._y[:n_data]
         names = self._names[:n_data]
 
         if self._normalize is True:
             X = X.astype(np.float32) / 255.
-            X = (X - self._deduct) / self._dividend
 
         return X, y, names
