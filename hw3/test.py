@@ -4,7 +4,7 @@ import sys
 from keras.models import load_model
 from scipy import misc
 
-batch_size = 1
+batch_size = 10
 
 def cate_to_colors(masks, n_classes=7):
     color_dict = {  0: np.asarray([0, 255, 255], dtype=np.uint8),
