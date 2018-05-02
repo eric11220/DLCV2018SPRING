@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 from keras.utils.np_utils import to_categorical
+from keras.preprocessing.image import ImageDataGenerator
 
 from models import *
 from data_loader import DataLoader
@@ -11,6 +12,17 @@ from mean_iou_evaluate import *
 DATA_DIR = "../data"
 SEG_TRAIN_MASK_DIR = "../results/train"
 SEG_TEST_MASK_DIR = "../results/test"
+
+
+def parse_input():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch_size", help="batch size", default=3, type=int)
+    parser.add_argument("--droprate", help="dropout rate", default=0.5, type=float)
+    parser.add_argument("--model", help="model structure", default="fcn32s")
+    parser.add_argument("--normalize", help="perform normalize or not", action="store_true")
+    parser.add_argument("--n_epoch", help="training epoch", default=50, type=int)
+    parser.add_argument("--saved_model_dir", help="Saved model directory", default="../models")
+    return parser.parse_args()
 
 
 def debug_load_data(normalize=False):
@@ -88,38 +100,40 @@ def seg_imgs_into_dir(model, X, names, seg_img_dir):
         misc.imsave(path, mask)
 
 
-def main(train_dl, val_dl):
-#def main():
-    n_epoch, batch_size, max_val_iou = 10, 3, 0.
-    normalize = True
-    saved_model_dir = "../models"
-    os.makedirs(saved_model_dir, exist_ok=True)
+#def main(train_dl, val_dl):
+def main():
+    args = parse_input()
 
-    '''
-    train_dl = DataLoader(os.path.join(DATA_DIR, "train"), normalize=normalize)
-    val_dl = DataLoader(os.path.join(DATA_DIR, "validation"), normalize=normalize)
-    '''
+    max_val_iou = 0.
+    os.makedirs(args.saved_model_dir, exist_ok=True)
 
-    fcn = FCN_Vgg16_32s(input_shape=(512, 512, 3))
-    for epoch_idx in range(n_epoch):
+    train_dl = DataLoader(os.path.join(DATA_DIR, "train"), normalize=args.normalize)
+    val_dl = DataLoader(os.path.join(DATA_DIR, "validation"), normalize=args.normalize)
+
+    fcn = FCN_Vgg16_32s(input_shape=(512, 512, 3), droprate=args.droprate)
+    for epoch_idx in range(args.n_epoch):
         batch_cnt = 0
-        epoch_finish, batch_X, batch_y, names = train_dl.next_batch(batch_size=batch_size)
+        epoch_finish, batch_X, batch_y, names = train_dl.next_batch(batch_size=args.batch_size)
 
         while epoch_finish is False:
             if batch_cnt % 100 == 0:
                 print("Processed %d batches..." % batch_cnt)
 
             loss = fcn.train_on_batch(batch_X, batch_y)
-            epoch_finish, batch_X, batch_y, _ = train_dl.next_batch(batch_size=batch_size)
+            epoch_finish, batch_X, batch_y, _ = train_dl.next_batch(batch_size=args.batch_size)
             batch_cnt += 1
 
         get_train_iou(fcn, train_dl, SEG_TRAIN_MASK_DIR)
-        val_mean_iou = run_testing(fcn, val_dl, SEG_TEST_MASK_DIR, batch_size=batch_size)
-        if val_mean_iou > max_val_iou:
-            model_path = os.path.join(saved_model_dir, "%.4f.h5" % val_mean_iou)
-            fcn.save(model_path)
-            print("IOU %.4f better than maxx IOU: %.4f, saving model to %s..." % (val_mean_iou, max_val_iou, model_path))
 
+        model_dir = os.path.join(args.saved_model_dir, "epoch%d_%.4f" % val_mean_iou)
+        os.makedirs(model_dir, exist_ok=True)
+        val_mean_iou = run_testing(fcn, val_dl, model_dir, batch_size=args.batch_size)
+        if val_mean_iou > max_val_iou:
+
+            model_path = os.path.join(model_dir, "model.h5")
+            fcn.save(model_path)
+
+            print("IOU %.4f better than maxx IOU: %.4f, saving model to %s..." % (val_mean_iou, max_val_iou, model_path))
             max_val_iou = val_mean_iou
 
 
