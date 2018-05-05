@@ -2,5 +2,6 @@
 **.un
 __pycache__
 data/
+models
 results/
 vgg16_weights_tf_dim_ordering_tf_kernels.h5
