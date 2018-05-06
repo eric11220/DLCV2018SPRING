@@ -14,20 +14,8 @@ def main():
     
     #plt_reconst_img_callback = PlotReconstImages(test_imgs, RECONST_DIR)
 
-    vae = VAE((64, 64, 3))
-    vae.fit(train_imgs,
-           train_imgs,
-           epochs=n_epoch,
-           validation_data=(test_imgs, test_imgs))
-
-    '''
-    ae = autoencoder((64, 64, 3))
-    ae.fit(train_imgs,
-           train_imgs,
-           epochs=n_epoch,
-           validation_data=(test_imgs, test_imgs))
-           #callbacks=[plt_reconst_img_callback])
-    '''
+    vae = VAE(train_imgs, test_imgs)
+    vae.train(n_epoch=n_epoch)
 
 
 if __name__ == '__main__':
