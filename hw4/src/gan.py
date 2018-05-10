@@ -1,18 +1,16 @@
 from __future__ import print_function, division
+import numpy as np
+import os
+import sys
+import tensorflow as tf
 
-from keras.layers import Input, Dense, Reshape, Flatten, Dropout
-from keras.layers import BatchNormalization, Activation, ZeroPadding2D
+from keras.layers import *
 from keras.layers.advanced_activations import LeakyReLU
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 
-import tensorflow as tf
+from matplotlib import pyplot as plt
 from scipy.misc import imread, imsave
-
-import sys
-import os
-
-import numpy as np
 
 
 class GAN():
@@ -47,37 +45,56 @@ class GAN():
         self.combined = Model(z, valid)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-    def build_generator(self):
+    def build_generator(self, gf_dim=64, k=5):
         model = Sequential()
-        model.add(Dense(input_dim=100, output_dim=1024, activation='relu'))
-        model.add(Reshape((4, 4, 64), input_shape=(64*4*4,)))
+        model.add(Dense(input_dim=100, output_dim=1024))
+        model.add(Reshape((4, 4, 64), input_shape=(64 * 4 * 4,)))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(Activation('relu'))
 
-        model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
-        model.add(UpSampling2D(size=(2, 2)))
-        model.add(Conv2D(32, (3, 3), padding='same', activation='relu'))
-        model.add(UpSampling2D(size=(2, 2)))
-        model.add(Conv2D(16, (3, 3), padding='same', activation='relu'))
-        model.add(UpSampling2D(size=(2, 2)))
-        model.add(Conv2D(8, (3, 3), padding='same', activation='relu'))
-        model.add(UpSampling2D(size=(2, 2)))
-        model.add(Conv2D(3, (3, 3), padding='same', activation='tanh'))
+        model.add(Conv2DTranspose(gf_dim * 4, k, strides=(2, 2), padding='same'))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(Activation('relu'))
+
+        model.add(Conv2DTranspose(gf_dim * 2, k, strides=(2, 2), padding='same'))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(Activation('relu'))
+
+        model.add(Conv2DTranspose(gf_dim * 1, k, strides=(2, 2), padding='same'))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(Activation('relu'))
+
+        model.add(Conv2DTranspose(3, k, strides=(2, 2), padding='same'))
+        model.add(Activation('tanh'))
+
+        print("Generator")
+        model.summary()
         return model
 
-    def build_discriminator(self):
+    def build_discriminator(self, df_dim=16, k=5):
         model = Sequential()
-        model.add(Conv2D(8, (3, 3), padding='same', activation='relu', input_shape=self.img_shape))
-        model.add(Conv2D(8, (3, 3), strides=(2, 2), padding='same'))
-        model.add(Conv2D(16, (3, 3), padding='same', activation='relu'))
-        model.add(Conv2D(16, (3, 3), strides=(2, 2), padding='same'))
-        model.add(Conv2D(32, (3, 3), padding='same', activation='relu'))
-        model.add(Conv2D(32, (3, 3), strides=(2, 2), padding='same'))
-        model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
-        model.add(Conv2D(64, (3, 3), strides=(2, 2), padding='same'))
+        model.add(Conv2D(df_dim, k, strides=(2, 2), padding='same', input_shape=self.img_shape))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(LeakyReLU(alpha=.2))
+
+        model.add(Conv2D(df_dim * 2, k, strides=(2, 2), padding='same'))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(LeakyReLU(alpha=.2))
+
+        model.add(Conv2D(df_dim * 4, k, strides=(2, 2), padding='same'))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(LeakyReLU(alpha=.2))
+
+        model.add(Conv2D(df_dim * 8, k, strides=(2, 2), padding='same'))
+        model.add(BatchNormalization(momentum=0.9))
+        model.add(LeakyReLU(alpha=.2))
 
         model.add(Flatten())
-        model.add(Dense(512, activation='relu'))
         model.add(Dense(1))
         model.add(Activation('sigmoid'))
+
+        print("Discriminator")
+        model.summary()
         return model
 
     def train(self, epochs, batch_size=64, sample_interval=50):
@@ -99,6 +116,14 @@ class GAN():
             gen_imgs = self.generator.predict(noise)
 
             # Train the discriminator
+            '''
+            d_loss_real = self.discriminator.train_on_batch(imgs, np.random.uniform(0.7, 1.2, [half_batch, 1]))
+            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.random.uniform(0, 0.3, [half_batch, 1]))
+            preds = self.discriminator.predict(np.vstack((imgs, gen_imgs)))
+            truth = np.vstack((np.ones((half_batch, 1), dtype=np.uint8), np.zeros((half_batch, 1), dtype=np.uint8)))
+            accu = np.sum((preds > 0.5) == truth) / batch_size
+            '''
+
             d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((half_batch, 1)))
             d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.zeros((half_batch, 1)))
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
@@ -131,7 +156,7 @@ class GAN():
 
         # Rescale images 0 - 1
         # NOTE: This depends on how DataLoader processes images
-        gen_imgs *= 255
+        gen_imgs = gen_imgs * 127.5 + 127.5
         gen_imgs = gen_imgs.astype(np.uint8)
 
         fig, axs = plt.subplots(r, c)
