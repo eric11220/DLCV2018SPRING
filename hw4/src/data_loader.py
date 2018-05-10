@@ -30,4 +30,4 @@ class ImageLoader():
         return imgs, paths
 
     def getData(self):
-        return self._imgs.astype(np.float32) / 255., self._paths
+        return (self._imgs.astype(np.float32) - 127.5) / 127.5, self._paths
