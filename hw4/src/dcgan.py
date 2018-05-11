@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from scipy.misc import imread, imsave
 
 
-class GAN():
+class DCGAN():
     def __init__(self, imgs, lr=2e-4, beta_1=0.5):
         self.imgs = imgs
         self.img_rows, self.img_cols, self.channels = imgs[0].shape
