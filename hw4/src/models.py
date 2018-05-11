@@ -1,2 +1,3 @@
 from vae import *
-from gan import *
+from dcgan import *
+from acgan import *
