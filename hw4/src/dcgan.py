@@ -110,7 +110,7 @@ class DCGAN():
             idx = np.random.randint(0, self.imgs.shape[0], half_batch)
             imgs = self.imgs[idx]
 
-            noise = np.random.normal(0, 1, (half_batch, 100))
+            noise = np.random.normal(-1, 1, (half_batch, 100))
 
             # Generate a half batch of new images
             gen_imgs = self.generator.predict(noise)
@@ -148,10 +148,10 @@ class DCGAN():
             if epoch % sample_interval == 0:
                 self.sample_images(epoch)
 
-    def sample_images(self, epoch, r=6, c=8, sample_img_dir="../images"):
+    def sample_images(self, epoch, r=6, c=8, sample_img_dir="../dcgan_images"):
         os.makedirs(sample_img_dir, exist_ok=True)
 
-        noise = np.random.normal(0, 1, (r * c, 100))
+        noise = np.random.normal(-1, 1, (r * c, 100))
         gen_imgs = self.generator.predict(noise)
 
         # Rescale images 0 - 1
