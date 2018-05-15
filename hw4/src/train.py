@@ -20,8 +20,9 @@ def train_dcgan(imgs, n_epoch=100000):
     dcgan.train(n_epoch, sample_interval=500)
 
 
-def train_acgan(imgs, attrs):
-    pass
+def train_acgan(imgs, attrs, n_epoch=100000):
+    acgan = ACGAN(imgs, attrs)
+    acgan.train(n_epoch, sample_interval=500)
 
 
 def main():
