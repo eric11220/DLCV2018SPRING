@@ -8,22 +8,29 @@ from keras.layers import *
 from keras.layers.advanced_activations import LeakyReLU
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
+from keras.utils import plot_model
+from keras.utils.np_utils import to_categorical
 
 from matplotlib import pyplot as plt
 from scipy.misc import imread, imsave
 
 
 class ACGAN():
-    def __init__(self, imgs, labels, n_classes=2, lr=2e-4, beta_1=0.5):
+    def __init__(self, imgs, labels, n_classes=2, lr=2e-4, beta_1=0.5, ac_loss_weight=1):
         self.imgs = imgs
         self.img_rows, self.img_cols, self.channels = imgs[0].shape
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
+        self.labels = labels
+        self.n_classes = n_classes
+
+        # Use ADAM for optimizer
         optimizer = Adam(lr, beta_1)
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss=['binary_crossentropy', 'sparse_categorical_crossentropy'],
+        self.discriminator.compile(loss=['binary_crossentropy', 'categorical_crossentropy'],
+                                   loss_weights=[1., ac_loss_weight],
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
 
@@ -31,23 +38,26 @@ class ACGAN():
         self.generator = self.build_generator()
 
         # The generator takes noise as input and generated imgs
-        z = Input(shape=(100,))
+        z = Input(shape=(100+1,))
         img = self.generator(z)
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
 
         # The valid takes generated images as input and determines validity
-        valid = self.discriminator(img)
+        valid, aux = self.discriminator(img)
 
         # The combined model  (stacked generator and discriminator) takes
         # noise as input => generates images => determines validity
-        self.combined = Model(z, valid)
-        self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+        self.combined = Model(z, [valid, aux])
+        self.combined.compile(
+                loss=['binary_crossentropy', 'categorical_crossentropy'],
+                loss_weights=[1., ac_loss_weight],
+                optimizer=optimizer)
 
-    def build_generator(self, gf_dim=64, k=5, latent_dim):
+    def build_generator(self, gf_dim=128, k=3, latent_dim=100):
         model = Sequential()
-        model.add(Dense(input_dim=latent_dim, output_dim=1024))
+        model.add(Dense(input_dim=latent_dim + 1, output_dim=1024))
         model.add(Reshape((4, 4, 64), input_shape=(64 * 4 * 4,)))
         model.add(BatchNormalization(momentum=0.9))
         model.add(Activation('relu'))
@@ -67,49 +77,47 @@ class ACGAN():
         model.add(Conv2DTranspose(3, k, strides=(2, 2), padding='same'))
         model.add(Activation('tanh'))
 
-        # Handle input
-        latent = Input(shape=(latent_dim, ))
-        image_class = Input(shape=(1,), dtype='int32')
-
-        # hadamard product between z-space and a class conditional embedding
-        cls = Flatten()(Embedding(num_classes, latent_size, embeddings_initializer='glorot_normal')(image_class))
-        h = layers.multiply([latent, cls])
-
-        fake_image = cnn(h)
-        model = Model([latent, image_class], fake_image)
-
         print("Generator")
         model.summary()
+        plot_model(model, to_file='generator.png', show_shapes=True)
         return model
 
-    def build_discriminator(self, df_dim=16, k=5):
+    def build_discriminator(self, df_dim=32, k=3, droprate=0.25):
         model = Sequential()
+
         model.add(Conv2D(df_dim, k, strides=(2, 2), padding='same', input_shape=self.img_shape))
         model.add(BatchNormalization(momentum=0.9))
         model.add(LeakyReLU(alpha=.2))
+        model.add(Dropout(droprate))
 
         model.add(Conv2D(df_dim * 2, k, strides=(2, 2), padding='same'))
         model.add(BatchNormalization(momentum=0.9))
         model.add(LeakyReLU(alpha=.2))
+        model.add(Dropout(droprate))
 
         model.add(Conv2D(df_dim * 4, k, strides=(2, 2), padding='same'))
         model.add(BatchNormalization(momentum=0.9))
         model.add(LeakyReLU(alpha=.2))
+        model.add(Dropout(droprate))
 
         model.add(Conv2D(df_dim * 8, k, strides=(2, 2), padding='same'))
         model.add(BatchNormalization(momentum=0.9))
         model.add(LeakyReLU(alpha=.2))
+        model.add(Dropout(droprate))
+
         model.add(Flatten())
 
         input_img = Input(shape=self.img_shape)
         features = model(input_img)
+        plot_model(model, to_file='shared_weight_model.png', show_shapes=True)
 
         fake_or_real = Dense(1, activation='sigmoid')(features)
-        aux = Dense(n_class, activation='softmax')(features)
+        aux = Dense(self.n_classes, activation='softmax')(features)
 
         print("Discriminator")
         model = Model(input_img, [fake_or_real, aux])
         model.summary()
+        plot_model(model, to_file='discriminator.png', show_shapes=True)
         return model
 
     def train(self, epochs, batch_size=64, sample_interval=50):
@@ -117,7 +125,7 @@ class ACGAN():
 
         # Do not maximize accuracy on attributes of generated images
         # Set corresponding weights to zero
-        gen_sample_weight = [np.ones(half_batch), np.concatenate(np.zeros(half_batch))]
+        d_sample_weight = [np.ones(half_batch), np.zeros(half_batch)]
 
         for epoch in range(epochs):
 
@@ -131,27 +139,43 @@ class ACGAN():
             labels = self.labels[idx]
 
             # Generate a half batch of new images with sampled labels from p_c
-            noise = np.random.normal(0, 1, (half_batch, 100))
-            sampled_labels = np.random.randint(0, n_classes, half_batch)
-            gen_imgs = self.generator.predict([noise, sampled_labels])
+            noise = np.random.normal(-1, 1, (half_batch, 100))
+            sampled_half_labels = np.random.randint(0, self.n_classes, half_batch)
+            noise_with_labels = np.concatenate((noise, sampled_half_labels.reshape(-1, 1)), axis=-1)
+
+            gen_imgs = self.generator.predict(noise_with_labels)
+            #gen_imgs = self.generator.predict(noise)
 
             # Train the discriminator
+            batch_imgs = np.vstack((imgs, gen_imgs))
+            batch_labels = np.concatenate((labels, sampled_half_labels))
+            batch_labels = to_categorical(batch_labels, num_classes=self.n_classes)
+
+            # Random flip real-fake labels
+            do_flip = np.random.uniform(1., 1., batch_size) > 1.
+            real_fake_label = np.concatenate((np.ones(half_batch), np.zeros(half_batch))) 
+            real_fake_label = np.logical_xor(real_fake_label, do_flip)
+
             d_loss_real = self.discriminator.train_on_batch(
                     imgs,
-                    [np.ones((half_batch, 1), labels]))
+                    [np.ones(half_batch), batch_labels[:half_batch]])
 
             d_loss_fake = self.discriminator.train_on_batch(
                     gen_imgs,
-                    [np.zeros((half_batch, 1)), sampled_labels],
-                    sample_weight=gen_sample_weight)
+                    [np.zeros(half_batch), batch_labels[half_batch:]])
+                    #sample_weight=d_sample_weight)
 
-            d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
+            d_loss = d_loss_real + d_loss_fake
+            real_fake_accu = d_loss[3]
+            attr_accu = d_loss[4]
 
             # ---------------------
             #  Train Generator
             # ---------------------
 
             noise = np.random.normal(0, 1, (batch_size, 100))
+            sampled_labels = np.random.randint(0, self.n_classes, batch_size)
+            noise_with_labels = np.concatenate((noise, sampled_labels.reshape(-1, 1)), axis=-1)
 
             # The generator wants the discriminator to label the generated samples
             # as valid (ones)
@@ -159,21 +183,24 @@ class ACGAN():
 
             # Train the generator
             g_loss = self.combined.train_on_batch(
-                    [noise, sampled_labels.reshape((-1, 1))],
-                    [valid_y, sampled_labels])
+                    noise_with_labels,
+                    [valid_y, to_categorical(sampled_labels, num_classes=self.n_classes)])
 
             # Plot the progress
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            print ("%d [D loss: %f, fake-real acc.: %.2f%%, attr acc.: %.2f%%] [G loss: %f]"
+                    % (epoch, d_loss[0], 100*real_fake_accu, 100*attr_accu, g_loss[0]))
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 self.sample_images(epoch)
 
-    def sample_images(self, epoch, r=6, c=8, sample_img_dir="../images"):
+    def sample_images(self, epoch, r=6, c=8, sample_img_dir="../acgan_images"):
         os.makedirs(sample_img_dir, exist_ok=True)
 
-        noise = np.random.normal(0, 1, (r * c, 100))
-        gen_imgs = self.generator.predict(noise)
+        noise = np.random.normal(-1, 1, (r * c, 100))
+        sampled_labels = np.random.randint(0, self.n_classes, r * c)
+        noise_with_labels = np.concatenate((noise, sampled_labels.reshape(-1, 1)), axis=-1)
+        gen_imgs = self.generator.predict(noise_with_labels)
 
         # Rescale images 0 - 1
         # NOTE: This depends on how DataLoader processes images
