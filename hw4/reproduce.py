@@ -144,10 +144,9 @@ def main():
     input_dir = sys.argv[1]
     output_dir = sys.argv[2]
 
-    '''
     ## VAE Part
     # Learning curves
-    losses = np.load("../stats/vae_losses.npy")
+    losses = np.load("stats/vae.npy")
     losses = losses.item()
     plot_losses(losses, os.path.join(output_dir, 'fig1_2.jpg'))
 
@@ -156,8 +155,8 @@ def main():
     test_imgs, _, test_attrs = test_img_loader.getData()
 
     # Loaad VAE decoder
-    vae_decoder = load_model("../models/vae_decoder.h5", custom_objects={'KLDivergenceLayer': VAE.KLDivergenceLayer})
-    vae_encoder = load_model("../models/vae_encoder.h5", custom_objects={'KLDivergenceLayer': VAE.KLDivergenceLayer})
+    vae_decoder = load_model("models/vae_decoder.h5", custom_objects={'KLDivergenceLayer': VAE.KLDivergenceLayer})
+    vae_encoder = load_model("models/vae_encoder.h5", custom_objects={'KLDivergenceLayer': VAE.KLDivergenceLayer})
 
     # Plot reconstructed images
     path = os.path.join(output_dir, "fig1_3.png")
@@ -173,17 +172,17 @@ def main():
 
     ## DCGAN Part
     # Learning curves
-    losses = np.load("../stats/dcgan.npy")
+    losses = np.load("stats/dcgan.npy")
     losses = losses.item()
     plot_losses(losses, os.path.join(output_dir, 'fig2_2.jpg'))
 
     # Random images
-    dcgan = load_model("../models/dcgan.h5")
+    dcgan = load_model("models/dcgan.h5")
     plot_dcgan_images(dcgan, os.path.join(output_dir, "fig2_3.png"))
 
     ## ACGAN Part
     # Learning curves
-    losses = np.load("../stats/acgan.npy")
+    losses = np.load("stats/acgan.npy")
     losses = losses.item()
 
     real_accu , fake_accu = losses['Accuracy of Discriminator']
@@ -209,10 +208,9 @@ def main():
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir, "fig3_2.png"))
-    '''
 
     # Random smiling pairs
-    acgan = load_model("../models/accgan.h5")
+    acgan = load_model("models/accgan.h5")
     plot_acgan_images(acgan, os.path.join(output_dir, "fig3_3.png"))
 
 
