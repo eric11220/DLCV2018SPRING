@@ -24,6 +24,9 @@ class ACGAN():
         self.labels = labels
         self.n_classes = n_classes
 
+        np.random.seed(820)
+        self.noise = np.random.normal(0, 1, (50, 100))
+
         # Use ADAM for optimizer
         optimizer = Adam(lr, beta_1)
 
@@ -33,9 +36,11 @@ class ACGAN():
                                    loss_weights=[1., ac_loss_weight],
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
+        plot_model(self.discriminator, to_file="acgan_discriminator.png", show_shapes=True)
 
         # Build the generator
         self.generator = self.build_generator()
+        plot_model(self.generator, to_file="acgan_generator.png", show_shapes=True)
 
         # The generator takes noise as input and generated imgs
         z = Input(shape=(100+1,))
@@ -104,6 +109,7 @@ class ACGAN():
         model.add(BatchNormalization(momentum=0.9))
         model.add(LeakyReLU(alpha=.2))
         model.add(Dropout(droprate))
+        plot_model(model, to_file="acgan_discriminator_middle.png", show_shapes=True)
 
         model.add(Flatten())
 
@@ -120,14 +126,15 @@ class ACGAN():
         plot_model(model, to_file='discriminator.png', show_shapes=True)
         return model
 
-    def train(self, epochs, batch_size=64, sample_interval=50):
+    def train(self, steps, batch_size=64, sample_interval=50):
         half_batch = int(batch_size / 2)
 
         # Do not maximize accuracy on attributes of generated images
         # Set corresponding weights to zero
         d_sample_weight = [np.ones(half_batch), np.zeros(half_batch)]
 
-        for epoch in range(epochs):
+        attr_accus_real, attr_accus_fake, accus_real, accus_fake = [], [], [], []
+        for step in range(steps):
 
             # ---------------------
             #  Train Discriminator
@@ -139,12 +146,11 @@ class ACGAN():
             labels = self.labels[idx]
 
             # Generate a half batch of new images with sampled labels from p_c
-            noise = np.random.normal(-1, 1, (half_batch, 100))
+            noise = np.random.normal(0, 1, (half_batch, 100))
             sampled_half_labels = np.random.randint(0, self.n_classes, half_batch)
             noise_with_labels = np.concatenate((noise, sampled_half_labels.reshape(-1, 1)), axis=-1)
 
             gen_imgs = self.generator.predict(noise_with_labels)
-            #gen_imgs = self.generator.predict(noise)
 
             # Train the discriminator
             batch_imgs = np.vstack((imgs, gen_imgs))
@@ -188,18 +194,31 @@ class ACGAN():
 
             # Plot the progress
             print ("%d [D loss: %f, fake-real acc.: %.2f%%, attr acc.: %.2f%%] [G loss: %f]"
-                    % (epoch, d_loss[0], 100*real_fake_accu, 100*attr_accu, g_loss[0]))
+                    % (step, d_loss[0], 100*real_fake_accu, 100*attr_accu, g_loss[0]))
+
+            attr_accus_real.append(d_loss_real[4])
+            attr_accus_fake.append(d_loss_fake[4])
+            accus_real.append(d_loss_real[3])
+            accus_fake.append(d_loss_fake[3])
 
             # If at save interval => save generated image samples
-            if epoch % sample_interval == 0:
-                self.sample_images(epoch)
+            if step % sample_interval == 0:
+                os.makedirs("../models/acgan", exist_ok=True)
+                self.generator.save("../models/acgan/step%d.h5" % step)
+                self.sample_images(step)
 
-    def sample_images(self, epoch, r=6, c=8, sample_img_dir="../acgan_images"):
+        return {'Training Loss of Attribute Classification': [attr_accus_real, attr_accus_fake],
+                'Accuracy of Discriminator': [accus_real, accus_fake]}
+
+    def sample_images(self, step, r=10, c=10, sample_img_dir="../acgan_images"):
         os.makedirs(sample_img_dir, exist_ok=True)
 
-        noise = np.random.normal(-1, 1, (r * c, 100))
-        sampled_labels = np.random.randint(0, self.n_classes, r * c)
-        noise_with_labels = np.concatenate((noise, sampled_labels.reshape(-1, 1)), axis=-1)
+        half_sample = int(r * c / 2)
+        ones = np.ones(half_sample)
+        zeros = np.zeros(half_sample)
+        labels = np.concatenate((ones, zeros), axis=-1)
+
+        noise_with_labels = np.concatenate((np.concatenate((self.noise, self.noise), axis=0), labels.reshape(-1, 1)), axis=-1)
         gen_imgs = self.generator.predict(noise_with_labels)
 
         # Rescale images 0 - 1
@@ -215,5 +234,5 @@ class ACGAN():
                 axs[i,j].axis('off')
                 cnt += 1
 
-        fig.savefig(os.path.join(sample_img_dir, "face_%d.png" % epoch))
+        fig.savefig(os.path.join(sample_img_dir, "face_%d.png" % step))
         plt.close()
