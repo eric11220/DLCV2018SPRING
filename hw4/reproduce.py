@@ -210,7 +210,7 @@ def main():
     plt.savefig(os.path.join(output_dir, "fig3_2.png"))
 
     # Random smiling pairs
-    acgan = load_model("models/accgan.h5")
+    acgan = load_model("models/acgan.h5")
     plot_acgan_images(acgan, os.path.join(output_dir, "fig3_3.png"))
 
 
