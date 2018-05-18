@@ -1,28 +1,36 @@
 import argparse
+import matplotlib
+matplotlib.use('Agg')
+
 from data_loader import ImageLoader
 from models import *
+from matplotlib import pyplot as plt
 
 RECONST_DIR = "../reconst"
+STAT_DIR = "../stats"
+
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument("model", help="Model to train", choices=["vae", "dcgan", "acgan"])
     return parser.parse_args()
 
 
-def train_vae(train_imgs, test_imgs, n_epoch=50):
-    #plt_reconst_img_callback = PlotReconstImages(test_imgs, RECONST_DIR)
+def train_vae(train_imgs, test_imgs, n_epoch=100):
     vae = VAE(train_imgs, test_imgs)
-    vae.train(n_epoch=n_epoch)
+    losses = vae.train(n_epoch=n_epoch)
+    np.save(os.path.join(STAT_DIR, "vae_losses.npy"), losses)
 
 
-def train_dcgan(imgs, n_epoch=100000):
+def train_dcgan(imgs, n_step=60000):
     dcgan = DCGAN(imgs)
-    dcgan.train(n_epoch, sample_interval=500)
+    losses = dcgan.train(n_step, sample_interval=500)
+    np.save(os.path.join(STAT_DIR, "dcgan.npy"), losses)
 
 
-def train_acgan(imgs, attrs, n_epoch=100000):
+def train_acgan(imgs, attrs, n_step=60000):
     acgan = ACGAN(imgs, attrs)
-    acgan.train(n_epoch, sample_interval=500)
+    losses = acgan.train(n_step, sample_interval=500)
+    np.save(os.path.join(STAT_DIR, "acgan.npy"), losses)
 
 
 def main():
