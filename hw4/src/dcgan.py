@@ -8,6 +8,7 @@ from keras.layers import *
 from keras.layers.advanced_activations import LeakyReLU
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
+from keras.utils import plot_model
 
 from matplotlib import pyplot as plt
 from scipy.misc import imread, imsave
@@ -26,9 +27,11 @@ class DCGAN():
         self.discriminator.compile(loss='binary_crossentropy',
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
+        plot_model(self.discriminator, to_file="dcgan_discriminator.png", show_shapes=True)
 
         # Build the generator
         self.generator = self.build_generator()
+        plot_model(self.generator, to_file="dcgan_generator.png", show_shapes=True)
 
         # The generator takes noise as input and generated imgs
         z = Input(shape=(100,))
@@ -97,10 +100,11 @@ class DCGAN():
         model.summary()
         return model
 
-    def train(self, epochs, batch_size=64, sample_interval=50):
+    def train(self, steps, batch_size=64, sample_interval=50):
+        d_losses, g_losses, d_accu = [], [], []
 
         half_batch = int(batch_size / 2)
-        for epoch in range(epochs):
+        for step in range(steps):
 
             # ---------------------
             #  Train Discriminator
@@ -110,20 +114,12 @@ class DCGAN():
             idx = np.random.randint(0, self.imgs.shape[0], half_batch)
             imgs = self.imgs[idx]
 
-            noise = np.random.normal(-1, 1, (half_batch, 100))
+            noise = np.random.normal(0, 1, (half_batch, 100))
 
             # Generate a half batch of new images
             gen_imgs = self.generator.predict(noise)
 
             # Train the discriminator
-            '''
-            d_loss_real = self.discriminator.train_on_batch(imgs, np.random.uniform(0.7, 1.2, [half_batch, 1]))
-            d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.random.uniform(0, 0.3, [half_batch, 1]))
-            preds = self.discriminator.predict(np.vstack((imgs, gen_imgs)))
-            truth = np.vstack((np.ones((half_batch, 1), dtype=np.uint8), np.zeros((half_batch, 1), dtype=np.uint8)))
-            accu = np.sum((preds > 0.5) == truth) / batch_size
-            '''
-
             d_loss_real = self.discriminator.train_on_batch(imgs, np.ones((half_batch, 1)))
             d_loss_fake = self.discriminator.train_on_batch(gen_imgs, np.zeros((half_batch, 1)))
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
@@ -142,16 +138,25 @@ class DCGAN():
             g_loss = self.combined.train_on_batch(noise, valid_y)
 
             # Plot the progress
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (step, d_loss[0], 100*d_loss[1], g_loss))
+            d_losses.append(d_loss[0])
+            g_losses.append(g_loss)
+            d_accu.append(d_loss[1])
 
             # If at save interval => save generated image samples
-            if epoch % sample_interval == 0:
-                self.sample_images(epoch)
+            if step % sample_interval == 0:
+                os.makedirs("../models/dcgan", exist_ok=True)
+                self.generator.save("../models/dcgan/step%d.h5" % step)
+                self.sample_images(step)
 
-    def sample_images(self, epoch, r=6, c=8, sample_img_dir="../dcgan_images"):
+        return { 'Training Loss of Discriminator': d_losses,
+                 'Training Loss of Generator': g_losses,
+                 'Accuracy of Discriminator': d_accu }
+
+    def sample_images(self, step, r=6, c=8, sample_img_dir="../dcgan_images"):
         os.makedirs(sample_img_dir, exist_ok=True)
 
-        noise = np.random.normal(-1, 1, (r * c, 100))
+        noise = np.random.normal(0, 1, (r * c, 100))
         gen_imgs = self.generator.predict(noise)
 
         # Rescale images 0 - 1
@@ -167,5 +172,5 @@ class DCGAN():
                 axs[i,j].axis('off')
                 cnt += 1
 
-        fig.savefig(os.path.join(sample_img_dir, "face_%d.png" % epoch))
+        fig.savefig(os.path.join(sample_img_dir, "face_%d.png" % step))
         plt.close()
