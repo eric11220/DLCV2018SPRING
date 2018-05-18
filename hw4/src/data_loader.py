@@ -5,7 +5,7 @@ from scipy import misc
 
 
 class ImageLoader():
-    def __init__(self, data_dir, presaved_path):
+    def __init__(self, data_dir, presaved_path=None):
         self._data_dir = data_dir
 
         if data_dir[-1] == '/':
@@ -17,7 +17,7 @@ class ImageLoader():
         self._info = self._load_data()
 
     def _load_data(self):
-        if os.path.isfile(self._presaved_path):
+        if self._presaved_path is not None and os.path.isfile(self._presaved_path):
             info = np.load(self._presaved_path)
         else:
             paths, imgs = [], []
@@ -33,7 +33,8 @@ class ImageLoader():
 
             attr_dict = self._load_attrs(paths)
             info = {**{'paths': paths, 'imgs': imgs}, **attr_dict}
-            np.savez(self._presaved_path, **info)
+            if self._presaved_path is not None:
+                np.savez(self._presaved_path, **info)
 
         return info
 
