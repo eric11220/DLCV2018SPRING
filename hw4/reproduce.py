@@ -127,6 +127,7 @@ def plot_acgan_images(generator, path):
     smile = generator.predict(inputs)
     smile = smile * 127.5 + 127.5
 
+    plt.clf()
     plot_imgs = np.zeros((128, 640, 3), dtype=np.uint8)
     for idx, (img, img_smile) in enumerate(zip(not_smile, smile)):
         plot_imgs[:64, idx*64:(idx+1)*64, :] = img
