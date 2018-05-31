@@ -26,9 +26,9 @@ class DataLoader():
             for name, cat, label in zip(info['Video_name'], info['Video_category'], info['Action_labels']):
                 print("Loading %s..." % name)
                 frames = readShortVideo(video_root, cat, name)
-                frames = frames.astype(np.float32)
-                frames = preprocess_input(frames)
 
+                # 'RGB'->'BGR'
+                frames = frames[:, :, :, ::-1]
                 frame_list.append(frames)
                 label_list.append(int(label))
     
@@ -62,13 +62,13 @@ class DataLoader():
         labels = to_categorical(labels, num_classes=n_class)
         return conv_feats, labels
 
-    def predict_images(self, frame_list, post_process="avg_pool", raw=False):
+    def predict_images(self, frame_list, post_process="avg_pool", raw=False, mean=np.asarray([123.68, 116.779, 103.939])):
         if self.model is None:
             self.model = resnet50()
 
         conv_feats = []
         for idx, frames in enumerate(frame_list):
-            conv_feat = self.model.predict(frames)
+            conv_feat = self.model.predict([frames, np.tile(mean, frames.shape[:-1] + (1,))])
             conv_feat = conv_feat[:, 0, 0, :]
     
             if not raw:
