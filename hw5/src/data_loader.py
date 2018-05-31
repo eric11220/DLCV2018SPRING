@@ -38,6 +38,26 @@ class DataLoader():
 
         return frame_list, label_list
 
+    def load_full_labels(self, label_root):
+        label_list = []
+        for label_path in os.listdir(label_root):
+            labels = [int(line.strip()) for line in open(os.path.join(label_root, label_path))]
+            print(labels)
+            input("check labels of a single video")
+            label_list.append(labels)
+        return label_list
+
+    def load_full_vids(self, data_dir, train=False, presaved=None):
+        if presaved is not None and os.path.isfile(presaved):
+            info = np.load(presaved)
+            frame_list, label_list = info['frames'], info['labels']
+        else:
+            label_root = os.path.join(data_dir, "labels", "train" if train else "valid")
+            video_root = os.path.join(data_dir, "videos", "train" if train else "valid")
+
+            labels = self.load_full_labels(label_root)
+            frame_list = self.load_full_frames(video_root)
+
     # "raw" indicates whether to perfrom post-processing on conv features
     def get_conv_feats(self, source, train=True, n_class=11, raw=False):
         if source == "trimmed":
@@ -45,19 +65,26 @@ class DataLoader():
                 presaved_conv_feat_path = os.path.join(self.presaved_dir, "trimmed_%s_conv_feats_raw.npz" % ("train" if train else "valid"))
             else:
                 presaved_conv_feat_path = os.path.join(self.presaved_dir, "trimmed_%s_conv_feats.npz" % ("train" if train else "valid"))
+        else:
+            presaved_conv_feat_path = os.path.join(self.presaved_dir, "%s_conv_feats.npz" % ("train" if train else "valid"))
 
-            if os.path.isfile(presaved_conv_feat_path):
-                info = np.load(presaved_conv_feat_path)
-                conv_feats, labels = info['conv_feats'], info['labels']
-            else:
+        if os.path.isfile(presaved_conv_feat_path):
+            info = np.load(presaved_conv_feat_path)
+            conv_feats, labels = info['conv_feats'], info['labels']
+        else:
+            if source == "trimmed":
                 # Load frames
                 data_dir = os.path.join(self.data_root, "TrimmedVideos")
                 presaved_path = os.path.join(self.presaved_dir, "trimmed_%s.npz" % ("train" if train else "valid"))
                 frame_list, labels = self.load_trimmed_vids(data_dir, train=train, presaved=presaved_path)
+            else:
+                data_dir = os.path.join(self.data_root, "TrimmedVideos")
+                presaved_path = os.path.join(self.presaved_dir, "%s.npz" % ("train" if train else "valid"))
+                frame_list, labels = self.load_full_frames(data_dir, train=train, presaved=presaved_path)
 
-                # Get conv feats after resnet50
-                conv_feats = self.predict_images(frame_list, raw=raw)
-                np.savez(presaved_conv_feat_path, **{'conv_feats': conv_feats, 'labels': labels})
+            # Get conv feats after resnet50
+            conv_feats = self.predict_images(frame_list, raw=raw)
+            np.savez(presaved_conv_feat_path, **{'conv_feats': conv_feats, 'labels': labels})
 
         labels = to_categorical(labels, num_classes=n_class)
         return conv_feats, labels
