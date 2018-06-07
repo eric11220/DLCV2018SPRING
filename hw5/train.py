@@ -12,23 +12,13 @@ PRESAVED_DIR = "../presaved"
 
 def parse_input():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", help="Data folder", default="../HW5_data/")
-    parser.add_argument("--model_dir", help="Trained model directory", default="../models")
+    parser.add_argument("--data_dir", help="Data folder", default="HW5_data/")
+    parser.add_argument("--model_dir", help="Trained model directory", default="models")
     parser.add_argument("--part", help="Which part of homework", default=3)
-    parser.add_argument("--n_epoch", help="Number of epochs", default=2)
+    parser.add_argument("--n_epoch", help="Number of epochs", default=50)
     return parser.parse_args()
 
-def debug_read_data():
-    data_loader = DataLoader(presaved_dir="../presaved", keep_remain=False)
-    #trimmed_train_conv_feats, train_labels = data_loader.get_conv_feats("trimmed", train=True)
-    #trimmed_valid_conv_feats, valid_labels = data_loader.get_conv_feats("trimmed", train=False)
-    #trimmed_train_conv_feats, train_labels = data_loader.get_conv_feats("trimmed", train=True, raw=True)
-    #trimmed_valid_conv_feats, valid_labels = data_loader.get_conv_feats("trimmed", train=False, raw=True)
-    trimmed_train_conv_feats, train_labels, _, _ = data_loader.get_conv_feats("full", train=True, raw=True)
-    trimmed_valid_conv_feats, valid_labels, _, _ = data_loader.get_conv_feats("full", train=False, raw=True)
-    return trimmed_train_conv_feats, train_labels, trimmed_valid_conv_feats, valid_labels
-
-def main(trimmed_train_conv_feats, train_labels, trimmed_valid_conv_feats, valid_labels):
+def main():
     args = parse_input()
 
     if args.part == 1:
@@ -40,7 +30,7 @@ def main(trimmed_train_conv_feats, train_labels, trimmed_valid_conv_feats, valid
     os.makedirs(model_dir, exist_ok=True)
 
     # Load data
-    data_loader = DataLoader(presaved_dir="../presaved", keep_remain=False)
+    data_loader = DataLoader(presaved_dir="presaved", keep_remain=False)
     if args.part == 1:
         trimmed_train_conv_feats, train_labels = data_loader.get_conv_feats("trimmed", train=True)
         trimmed_valid_conv_feats, valid_labels = data_loader.get_conv_feats("trimmed", train=False)
