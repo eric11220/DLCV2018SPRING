@@ -15,7 +15,7 @@ def parse_input():
     parser.add_argument("--data_dir", help="Data folder", default="../HW5_data/")
     parser.add_argument("--model_dir", help="Trained model directory", default="../models")
     parser.add_argument("--part", help="Which part of homework", default=3)
-    parser.add_argument("--n_epoch", help="Number of epochs", default=2)
+    parser.add_argument("--n_epoch", help="Number of epochs", default=50)
     return parser.parse_args()
 
 def debug_read_data():
@@ -28,7 +28,8 @@ def debug_read_data():
     trimmed_valid_conv_feats, valid_labels, _, _ = data_loader.get_conv_feats("full", train=False, raw=True)
     return trimmed_train_conv_feats, train_labels, trimmed_valid_conv_feats, valid_labels
 
-def main(trimmed_train_conv_feats, train_labels, trimmed_valid_conv_feats, valid_labels):
+#def main(trimmed_train_conv_feats, train_labels, trimmed_valid_conv_feats, valid_labels):
+def main():
     args = parse_input()
 
     if args.part == 1:

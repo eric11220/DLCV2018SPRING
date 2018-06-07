@@ -38,6 +38,7 @@ class DataLoader():
     
             label_list = np.asarray(label_list)
             if presaved is not None:
+                os.makedirs(os.path.dirname(presaved),exist_ok=True)
                 np.savez(presaved, **{"frames": frame_list, "labels": label_list})
 
         return frame_list, label_list
@@ -67,6 +68,7 @@ class DataLoader():
         if presaved is not None and os.path.isfile(presaved):
             info = np.load(presaved)
             frame_list, label_list = info['frames'], info['labels']
+            video_cats = info['video_cats'] if 'video_cats' in info.files else None
         else:
             if label_path is not None:
                 label_list = self.load_full_labels(label_path)
@@ -75,6 +77,7 @@ class DataLoader():
 
             frame_list, video_cats = self.load_full_frames(video_dir)
             if presaved is not None:
+                os.makedirs(os.path.dirname(presaved),exist_ok=True)
                 np.savez(presaved, **{"frames": frame_list, "labels": label_list})
 
         return frame_list, label_list, video_cats
@@ -121,7 +124,7 @@ class DataLoader():
         if self.presaved_dir is not None and os.path.isfile(presaved_conv_feat_path):
             info = np.load(presaved_conv_feat_path)
             conv_feats, labels = info['conv_feats'], info['labels']
-            video_cats = None
+            video_cats = info['video_cats'] if 'video_cats' in info.files else None
         else:
             if source == "trimmed":
                 if video_dir is None:
@@ -154,7 +157,7 @@ class DataLoader():
 
     def predict_images(self, frame_list, post_process="avg_pool", raw=False, mean=np.asarray([123.68, 116.779, 103.939])):
         if self.model is None:
-            self.model = load_model(resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5)
+            self.model = resnet50()
 
         conv_feats = []
         for idx, frames in enumerate(frame_list):
