@@ -9,7 +9,7 @@ from reader import *
 from model import *
 
 class DataLoader():
-    def __init__(self, data_root="../HW5_data", presaved_dir="../presaved", cut_len=20, cut_step=10, keep_remain=True):
+    def __init__(self, data_root="../HW5_data", presaved_dir="presaved", cut_len=20, cut_step=10, keep_remain=True):
         self.data_root = data_root
         self.model = None
         self.presaved_dir = presaved_dir
@@ -154,7 +154,7 @@ class DataLoader():
 
     def predict_images(self, frame_list, post_process="avg_pool", raw=False, mean=np.asarray([123.68, 116.779, 103.939])):
         if self.model is None:
-            self.model = load_model(resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5)
+            self.model = load_model("pretrained-resnet50.hdf5")
 
         conv_feats = []
         for idx, frames in enumerate(frame_list):
