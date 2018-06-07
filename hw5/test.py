@@ -14,8 +14,6 @@ from data_loader import DataLoader
 from dispatcher import Dispatcher
 from model import *
 
-PRESAVED_DIR = "../presaved"
-
 # labels should be of shape (n_seqs, seq_len)
 def split_labels_to_vids(labels, vid_lens):
     seq_len = labels.shape[1]
@@ -53,7 +51,7 @@ def main():
     model = load_model(args.model_path)
 
     # Load data
-    data_loader = DataLoader(presaved_dir="../presaved", cut_len=20, cut_step=20)
+    data_loader = DataLoader(presaved_dir=None, cut_len=20, cut_step=20)
     if args.part == 1:
         trimmed_valid_conv_feats, valid_labels = \
                 data_loader.get_conv_feats("trimmed", video_dir=args.video_dir, label_path=args.label_path, train=False)
@@ -87,6 +85,7 @@ def main():
             for label_set, video_cat in zip(label_sets, video_cats):
                 path = os.path.join(args.output_path, "%s.txt" % video_cat)
                 write_labels_to_file(path, label_set)
+
     elif args.part == 4:
         avg_valid_conv_feats, valid_labels = \
                 data_loader.get_conv_feats("trimmed", video_dir=args.video_dir, label_path=args.label_path, train=False)
