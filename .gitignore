@@ -1,0 +1,8 @@
+*.npy
+*.txt
+*.un
+*~
+
+__pycache__
+
+models
