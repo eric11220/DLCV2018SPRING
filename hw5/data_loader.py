@@ -9,7 +9,7 @@ from reader import *
 from model import *
 
 class DataLoader():
-    def __init__(self, data_root="../HW5_data", presaved_dir="presaved", cut_len=20, cut_step=10, keep_remain=True):
+    def __init__(self, data_root="HW5_data", presaved_dir="presaved", cut_len=20, cut_step=10, keep_remain=True):
         self.data_root = data_root
         self.model = None
         self.presaved_dir = presaved_dir
