@@ -28,7 +28,7 @@ class DataLoader():
     
             info = getVideoList(label_path)
             for name, cat, label in zip(info['Video_name'], info['Video_category'], info['Action_labels']):
-                print("Loading %s..." % name)
+                #print("Loading %s..." % name)
                 frames = readShortVideo(video_dir, cat, name)
 
                 # 'RGB'->'BGR'
@@ -161,7 +161,7 @@ class DataLoader():
 
         conv_feats = []
         for idx, frames in enumerate(frame_list):
-            print("Forwarding %d set of frames thru network..." % idx)
+            #print("Forwarding %d set of frames thru network..." % idx)
             conv_feat = self.model.predict([frames, np.tile(mean, frames.shape[:-1] + (1,))])
             conv_feat = conv_feat[:, 0, 0, :]
     
