@@ -1,0 +1,3 @@
+[submodule "final/src/Random-Erasing"]
+	path = final/src/Random-Erasing
+	url = ./final/src/LearningToCompare-Pytorch/
