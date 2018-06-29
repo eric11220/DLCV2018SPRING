@@ -1,3 +1,6 @@
 [submodule "final/src/Random-Erasing"]
 	path = final/src/Random-Erasing
-	url = ./final/src/LearningToCompare-Pytorch/
+	url = /home/eric11220/Desktop/DLCV2018SPRING/final/src/Random-Erasing/
+[submodule "final/src/LearningToCompare-Pytorch"]
+	path = final/src/LearningToCompare-Pytorch
+	url = /home/eric11220/Desktop/DLCV2018SPRING/final/src/LearningToCompare-Pytorch/
