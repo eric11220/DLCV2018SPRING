@@ -5,12 +5,11 @@ import random
 from os.path import dirname, basename, join, splitext, abspath, islink
 train_dir = "train"
 
-num_val = 0
-
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", help="Generate which csv", default="base")
     parser.add_argument("--kshot", help="K-shot scenario", default=5)
+    parser.add_argument("--n-valid", help="Number of validation data", default=60, type=int)
 
     parser.add_argument("--output-dir", help="Directory for generated csv and image folder", default=".")
     parser.add_argument("--oversampling", help="Oversampling ratio", default=1, type=int)
@@ -25,9 +24,9 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     # Foundation Class
+    cls_idx = 0
     train_paths, val_paths = {}, {}
-    for cls in os.listdir(join(train_dir, "base")):
-        cls_idx = cls.split('_')[1]
+    for cls in sorted(os.listdir(join(train_dir, "base"))):
         cls_dir = join(train_dir, "base", cls)
 
         train_subdir = join(cls_dir, "train")
@@ -44,7 +43,7 @@ def main():
             new_name = "%s_%s_%s%s" % (cls, name, _dirname, ext)
             new_path = join(img_dir, new_name)
 
-            if img_idx >= num_val:
+            if img_idx >= args.n_valid:
                 train_paths[new_name] = cls_idx
             else:
                 val_paths[new_name] = cls_idx
@@ -53,11 +52,11 @@ def main():
                 os.unlink(new_path)
 
             os.symlink(abspath(img_path), new_path)
+        cls_idx += 1
 
     if args.mode == "novel":
         # Novel Class: Random select k images for training, others for testing
-        for cls in os.listdir(join(train_dir, "novel")):
-            cls_idx = cls.split('_')[1]
+        for cls in sorted(os.listdir(join(train_dir, "novel"))):
             cls_dir = join(train_dir, "novel", cls, "train")
 
             novel_train = random.sample(os.listdir(cls_dir), args.kshot)
@@ -87,9 +86,8 @@ def main():
                     if islink(new_path):
                         os.unlink(new_path)
                     os.symlink(abspath(full_path), new_path)
+            cls_idx += 1
 
-    print(len(train_paths))
-    input("")
     train_csv = join(args.output_dir, "train.csv")
     with open(train_csv, 'w') as outf:
         for path, label in train_paths.items():

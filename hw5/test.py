@@ -66,7 +66,8 @@ def main():
             trimmed_valid_conv_feats, valid_labels, vid_lens, video_cats = \
                     data_loader.get_conv_feats("full", video_dir=args.video_dir, label_path=args.label_path, train=False, raw=True)
 
-        max_seq_len = max([len(conv_feats) for conv_feats in trimmed_valid_conv_feats])
+        #max_seq_len = max([len(conv_feats) for conv_feats in trimmed_valid_conv_feats])
+        max_seq_len = 267
         valid_dispatcher = Dispatcher(trimmed_valid_conv_feats, valid_labels, max_seq_len, shuffle=False)
 
         all_labels = None
