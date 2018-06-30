@@ -1,6 +1,0 @@
-[submodule "final/src/Random-Erasing"]
-	path = final/src/Random-Erasing
-	url = git@github.com:eric11220/Random-Erasing.git
-[submodule "final/src/LearningToCompare-Pytorch"]
-	path = final/src/LearningToCompare-Pytorch
-	url = git@github.com:eric11220/LearningToCompare-Pytorch.git
