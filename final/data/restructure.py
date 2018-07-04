@@ -8,7 +8,7 @@ train_dir = "train"
 def parse_input():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", help="Generate which csv", default="base")
-    parser.add_argument("--kshot", help="K-shot scenario", default=5)
+    parser.add_argument("--kshot", help="K-shot scenario", default=10)
     parser.add_argument("--n-valid", help="Number of validation data", default=60, type=int)
 
     parser.add_argument("--output-dir", help="Directory for generated csv and image folder", default=".")
